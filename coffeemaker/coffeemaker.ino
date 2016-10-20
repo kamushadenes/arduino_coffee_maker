@@ -6,15 +6,15 @@
 // The IP address will be dependent on your local network:
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-IPAddress ip(192,168,123,251);
+IPAddress ip(192, 168, 125, 222);
 
 
 EthernetUDP Udp;
 
 // Syslog configuration
 #define localUdpPort 8888
-#define syslogPort 10514
-IPAddress syslogServer(192, 168, 123, 14);
+#define syslogPort 10516
+IPAddress syslogServer(192, 168, 125, 231);
 
 // Initialize the Ethernet server library
 // with the IP address and port you want to use
@@ -54,6 +54,8 @@ int DEBUG = 7;
 
 // Brew Status
 String brew_status = "NO_COFFEE";
+String event = "";
+String msg = "No Coffee Available";
 String currentId = "";
 
 
@@ -74,7 +76,7 @@ String generateId() {
   return msg;
 }
 
-void http_response(EthernetClient client, char* http_status, char* reason, String response) {
+void http_response(EthernetClient client, char* http_status, String reason, String response) {
 
   client.print("HTTP/1.1 ");
   client.print(http_status);
@@ -97,52 +99,75 @@ void http_response(EthernetClient client, char* http_status, char* reason, Strin
 void http_when(EthernetClient client) {
       if (brew_status == "COFFEE_READY" || brew_status == "NO_COFFEE") {
         // send a standard http response header
-        http_response(client, HTTP_406, "Not Brewing", "NOT_ACCEPTABLE");
-        sendSyslogMessage(WARN, "406|WHEN|NOT_ACCEPTABLE||Not Brewing");
+        event = "NOT_ACCEPTABLE";
+        msg = "Not Brewing";
+        http_response(client, HTTP_406, msg, event);
+        sendSyslogMessage(WARN, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|msg=" + msg + " requestMethod=WHEN");
       } else {
         brew_status = "COFFEE_READY";
         do_when();
-        http_response(client, HTTP_200, "Brew Stopped", "BREW_STOPPED");
-        sendSyslogMessage(INFO, "200|WHEN|BREW_STOPPED|" + currentId + "|Brew Stopped");
+        event = "BREW_STOPPED";
+        msg = "Brew Stopped";
+        http_response(client, HTTP_200, msg, event);
+        sendSyslogMessage(INFO, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|externalId=" + currentId + " msg=" + msg + " requestMethod=WHEN");
       }
 
 }
 
 
 void http_propfind(EthernetClient client) {
-      http_response(client, HTTP_200, "Coffee Status Requested", brew_status);
-      String msg = "200|PROPFIND|" + brew_status + "|" + currentId + "|Coffee Status Requested";
+      event = brew_status;
+      msg = "Coffee Status Requested";
+      http_response(client, HTTP_200, msg, event);
+      String msg = "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|externalId=" + currentId + " msg=" + msg + " requestMethod=PROPFIND";
+      
       sendSyslogMessage(INFO, msg);
 }
 
 void http_brew(EthernetClient client) {
       if (brew_status == "BREWING") {
-        http_response(client, HTTP_406, "Already Brewing", "NOT_ACCEPTABLE");
-        sendSyslogMessage(WARN, "406|BREW|NOT_ACCEPTABLE|" + currentId + "|Already Brewing");
+        event = "NOT_ACCEPTABLE";
+        msg = "Already Brewing";
+        http_response(client, HTTP_406, msg, event);
+        sendSyslogMessage(WARN, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|externalId=" + currentId + " msg=" + msg + " requestMethod=BREW");
+        
       } else {
         brew_status = "BREWING";
         do_brew();
         currentId = generateId();
-        http_response(client, HTTP_200, "Brew Started", "BREW_STARTED");
-        sendSyslogMessage(INFO, "200|BREW|BREW_STARTED|" + currentId + "|Brew Started");
+        event = "BREW_STARTED";
+        msg = "Brew Started";
+        http_response(client, HTTP_200, msg, event);
+        sendSyslogMessage(INFO, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|externalId=" + currentId + " msg=" + msg + " requestMethod=BREW");
+        
       }
 }
 
 void http_get(EthernetClient client) {
       if (brew_status == "BREWING" ) {
-          http_response(client, HTTP_503, "Still Brewing", brew_status);
-          sendSyslogMessage(ERR, "503|GET|BREWING|" + currentId + "|Still Brewing");
+          event = brew_status;
+          msg = "Still Brewing";
+          http_response(client, HTTP_503, msg, event);
+          sendSyslogMessage(ERR, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|externalId=" + currentId + " msg=" + msg + " requestMethod=GET");
       } else if (brew_status == "NO_COFFEE") {
-          http_response(client, HTTP_503, "No Coffee Available", brew_status);
-          sendSyslogMessage(ERR, "503|GET|NO_COFFEE||No Coffee Available");
+          event = brew_status;
+          msg = "No Coffee Available";
+          http_response(client, HTTP_503, msg, event);
+          sendSyslogMessage(ERR, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|msg=" + msg + " requestMethod=GET");
       } else if (brew_status == "COFFEE_READY") {
-          http_response(client, HTTP_200, "Coffee Served", "COFFEE_SERVED");
-          sendSyslogMessage(INFO, "200|GET|COFFEE_SERVED|" + currentId + "|Coffee Served");
+          event = "COFFEE_SERVED";
+          msg = "Coffee Served";
+          http_response(client, HTTP_200, msg, event);
+          sendSyslogMessage(INFO, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|externalId=" + currentId + " msg=" + msg + " requestMethod=GET");
           brew_status = "NO_COFFEE";
           currentId = "";
       } else {
-          http_response(client, HTTP_500, "Unexpected brewing status", "ERROR");
-          sendSyslogMessage(ERR, "500|GET|ERROR||Unexpected brewing status");
+          event = "ERROR";
+          msg = "Unexpected brewing status";
+          http_response(client, HTTP_500, msg, event);
+          sendSyslogMessage(ERR, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|" + event + "|5|msg=" + msg + " requestMethod=GET");
+
+          
       }
 }
 
@@ -165,7 +190,7 @@ void setup() {
   //Serial.println(Ethernet.localIP());
 
   Udp.begin(localUdpPort);
-  sendSyslogMessage(INFO, "000|BOOT|START||ArcSight CoffeeMaker started");
+  sendSyslogMessage(INFO, "CEF:0|HPE Brazil SecLab|Coffee Maker|1.0|0|START|5|msg=ArcSight CoffeeMaker started requestMethod=BOOT");
 }
 
 
