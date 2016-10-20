@@ -13,6 +13,6 @@ class CoffeeMakerAPI(object):
 
 
 if __name__ == '__main__':
-    cma = CoffeeMakerAPI('192.168.125.222', 80)
+    cma = CoffeeMakerAPI(sys.argv[1], sys.argv[2])
 
-    print(cma.request(sys.argv[1]).content)
+    print(cma.request(sys.argv[3]).content)
